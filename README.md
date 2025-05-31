@@ -21,7 +21,7 @@ Gimme Volumes is a lightweight Windows desktop utility that lets you control aud
 - ⚙️ P/Invoke support via `Microsoft.Windows.CsWin32`
 - 📦 Unpackaged app — no installer required
 
-<p align="center">
+<p>
   <img src="mainwindow.png" alt="Main Window" />
   <img src="settings.png" alt="Settings Window"/>
 </p>
