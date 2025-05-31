@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Gimme Volumes (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "Gimme Volumes (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

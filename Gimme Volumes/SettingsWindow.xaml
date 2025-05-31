@@ -1,0 +1,41 @@
+<Window
+    x:Class="Gimme_Volumes.SettingsWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Gimme_Volumes"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="Settings">
+
+    <Window.SystemBackdrop>
+        <DesktopAcrylicBackdrop />
+    </Window.SystemBackdrop>
+
+    <StackPanel>
+        <TextBlock Text="Settings" FontSize="20" Padding="10,5"/>
+        <StackPanel Padding="20,5" Spacing="10">
+            
+            <ToggleSwitch x:Name="StartupToggle" OffContent="Launch On Startup" OnContent="Launch On Startup" />
+            
+            <Rectangle Height="1" Fill="Gray" HorizontalAlignment="Stretch"/>
+
+            <StackPanel Orientation="Vertical" Spacing="10">
+                <TextBlock Text="Hotkey Modifier" FontSize="15"/>
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <ToggleButton x:Name="CtrlToggle" Content="Ctrl" />
+                    <ToggleButton x:Name="AltToggle" Content="Alt" />
+                    <ToggleButton x:Name="ShiftToggle" Content="Shift" />
+                    <ToggleButton x:Name="WinToggle" Content="Win" />
+                </StackPanel>
+
+                <TextBlock Text="Hotkey Key" FontSize="15" Margin="0,10,0,0"/>
+                <ComboBox x:Name="KeyDropdown" Width="150"/>
+
+                <Button x:Name="save" Content="Save Hotkey" Click="SaveHotkey_Click" Margin="0,10,0,0"/>
+            </StackPanel>
+
+        </StackPanel>
+    </StackPanel>
+    
+</Window>
