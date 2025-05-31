@@ -1,4 +1,4 @@
-# Gimme Volumes
+# Gimme Volumes Alt+Z
 <div align="center">
   <img src="icon.png" alt="App Icon" width="200"/>
   <p><em>Lightweight per-application volume control for Windows</em></p>
