@@ -27,7 +27,7 @@ Gimme Volumes is a lightweight Windows desktop utility that lets you control aud
 
 ## Getting Started
 
-1. **Download the latest release** from the [Releases](https://github.com/YOUR_USERNAME/Gimme-Volumes/releases) page.
+1. **Download the latest release** from the [Releases](https://github.com/meltamagodan/Gimme-Volumes/releases) page.
 2. Extract and run `Gimme Volumes.exe`.
 3. Use the tray icon to open settings and configure your hotkey and preferences.
 
