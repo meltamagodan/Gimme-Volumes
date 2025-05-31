@@ -1,5 +1,7 @@
 # Gimme Volumes
 
+![App Icon](icon.png "App Icon" width="64" height="64")
+
 Gimme Volumes is a lightweight Windows desktop utility that lets you control audio sessions per application using a global hotkey. It's built with modern Windows technologies and designed for ease of use.
 
 ![Main Window](mainwindow.png)
@@ -29,8 +31,6 @@ Gimme Volumes is a lightweight Windows desktop utility that lets you control aud
 
 ### Tray Icon
 
-![Tray Icon](icon.png)
-
 - 🛠 Settings
 - ❌ Exit
 - 🖱 Double-click to open main window
@@ -39,9 +39,9 @@ Gimme Volumes is a lightweight Windows desktop utility that lets you control aud
 
 ## Reduce Size (Optional)
 
-To further reduce the app size, a Python script (`clean_unused.py`) is provided to delete unnecessary DLLs and folders. Just drop it into the EXE directory and run it.
+To further reduce the app size, a Python script (`!delete_unused_files.py`) is provided to delete unnecessary DLLs and folders. Just drop it into the EXE directory and run it.
 
-> ⚠️ **Use at your own risk.** Make sure you back up important files.
+> 250mb -> 120mb
 
 ---
 
@@ -54,8 +54,3 @@ To further reduce the app size, a Python script (`clean_unused.py`) is provided 
 - Windows App SDK 1.7 workload
 - Windows 10/11
 
----
-
-## Author
-
-Created by [@YourUsername](https://github.com/YourUsername).
