@@ -1,6 +1,6 @@
 # Gimme Volumes
 
-![App Icon](icon.png "App Icon" width="64" height="64")
+![App Icon](icon.png "App Icon" width="200")
 
 Gimme Volumes is a lightweight Windows desktop utility that lets you control audio sessions per application using a global hotkey. It's built with modern Windows technologies and designed for ease of use.
 
