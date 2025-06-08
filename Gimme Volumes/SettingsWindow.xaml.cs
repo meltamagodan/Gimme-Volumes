@@ -1,15 +1,16 @@
 using IWshRuntimeLibrary;
 using Microsoft.UI;
+using Microsoft.UI.Input;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using Windows.Graphics;
+using Windows.System;
+using Windows.UI.Core;
 using Windows.Win32.Foundation;
 using WinRT.Interop;
-using System.Linq;
 
 namespace Gimme_Volumes
 {
@@ -29,22 +30,7 @@ namespace Gimme_Volumes
             _onHotkeySaved = onHotkeySaved;
 
             hwnd = new HWND(WindowNative.GetWindowHandle(this).ToInt32());
-            var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
-            var appWindow = AppWindow.GetFromWindowId(windowId);
-
-            var displayArea = DisplayArea.GetFromWindowId(windowId, DisplayAreaFallback.Nearest);
-            PointInt32 CenteredPosition = appWindow.Position;
-            CenteredPosition.X = (displayArea.WorkArea.Width+320) / 2;
-            CenteredPosition.Y = (displayArea.WorkArea.Height-320) / 2;
-            appWindow.Move(CenteredPosition);
-            appWindow.Resize(new SizeInt32 { Width = 280, Height = 320 });
-
-            var _presenter = (OverlappedPresenter)appWindow.Presenter;
-            _presenter.IsMaximizable = false;
-            _presenter.IsMinimizable = false;
-            _presenter.IsResizable = false;
-            
-            ExtendsContentIntoTitleBar = true;
+            InitWindowStyle();
 
             StartupToggle.IsOn = IsStartupEnabled();
             StartupToggle.Toggled += (s, e) =>
@@ -55,72 +41,137 @@ namespace Gimme_Volumes
             LoadHotkeyUI();
         }
 
-        private void SaveHotkey_Click(object sender, RoutedEventArgs e)
+        private void InitWindowStyle()
         {
-            System.Diagnostics.Debug.WriteLine(HotkeyConfigPath);
-            int modifier = 0;
-            if (AltToggle.IsChecked == true) modifier |= 1;
-            if (CtrlToggle.IsChecked == true) modifier |= 2;
-            if (ShiftToggle.IsChecked == true) modifier |= 4;
-            if (WinToggle.IsChecked == true) modifier |= 8;
+            var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
+            var appWindow = AppWindow.GetFromWindowId(windowId);
 
-            if (KeyDropdown.SelectedItem is ComboBoxItem selectedItem &&
-                uint.TryParse(selectedItem.Tag?.ToString(), out uint key))
-            {
-                Directory.CreateDirectory(Path.GetDirectoryName(HotkeyConfigPath)!);
-                System.IO.File.WriteAllText(HotkeyConfigPath, $"Modifier={modifier}\nKey={key}");
-            }
+            var displayArea = DisplayArea.GetFromWindowId(windowId, DisplayAreaFallback.Nearest);
+            PointInt32 CenteredPosition = appWindow.Position;
+            CenteredPosition.X = (displayArea.WorkArea.Width + 320) / 2;
+            CenteredPosition.Y = (displayArea.WorkArea.Height - 320) / 2;
+            appWindow.Move(CenteredPosition);
+            appWindow.Resize(new SizeInt32 { Width = 300, Height = 200 });
 
-            _onHotkeySaved?.Invoke();
+            var _presenter = (OverlappedPresenter)appWindow.Presenter;
+            _presenter.IsMaximizable = false;
+            _presenter.IsMinimizable = false;
+            _presenter.IsResizable = false;
+            _presenter.IsAlwaysOnTop = true;
+
+            ExtendsContentIntoTitleBar = true;
         }
 
         private void LoadHotkeyUI()
         {
-            KeyDropdown.Items.Clear();
-
-            PopulateKeyDropdown();
-
             if (System.IO.File.Exists(HotkeyConfigPath))
             {
                 var lines = System.IO.File.ReadAllLines(HotkeyConfigPath);
                 int modifier = int.Parse(lines[0].Split('=')[1]);
                 uint key = uint.Parse(lines[1].Split('=')[1]);
+                HotkeyRecordButton.Content = $"{FormatModifier(modifier)}{GetKeyName(key)}";
+            }
+            else
+            {
+                HotkeyRecordButton.Content = "Click to assign";
+            }
+        }
 
-                AltToggle.IsChecked = (modifier & 1) != 0;
-                CtrlToggle.IsChecked = (modifier & 2) != 0;
-                ShiftToggle.IsChecked = (modifier & 4) != 0;
-                WinToggle.IsChecked = (modifier & 8) != 0;
-                foreach (var item in from ComboBoxItem item in KeyDropdown.Items
-                                     where item.Tag?.ToString() == key.ToString()
-                                     select item)
+        private static void SetStartup(bool enable)
+        {
+            string exePath = Environment.ProcessPath!;
+
+            if (enable)
+            {
+                var shell = new WshShell();
+                IWshShortcut shortcut = (IWshShortcut)shell.CreateShortcut(ShortcutPath);
+                shortcut.TargetPath = exePath;
+                shortcut.WorkingDirectory = Path.GetDirectoryName(exePath);
+                shortcut.WindowStyle = 1;
+                shortcut.Description = "Launch Gimme Volumes at startup";
+                shortcut.Save();
+            }
+            else
+            {
+                if (System.IO.File.Exists(ShortcutPath))
                 {
-                    KeyDropdown.SelectedItem = item;
-                    break;
+                    System.IO.File.Delete(ShortcutPath);
                 }
             }
         }
 
-        private void PopulateKeyDropdown()
+        private static bool IsStartupEnabled()
         {
-            var keyMap = new Dictionary<uint, string>
+            return System.IO.File.Exists(ShortcutPath);
+        }
+
+        private bool isRecordingHotkey = false;
+        private uint currentKeyCode = 0;
+        private int currentModifier = 0;
+
+        private void SaveDetectedHotkey_Click(object sender, RoutedEventArgs e)
+        {
+            if (currentKeyCode == 0) return;
+
+            Directory.CreateDirectory(Path.GetDirectoryName(HotkeyConfigPath)!);
+            System.IO.File.WriteAllText(HotkeyConfigPath, $"Modifier={currentModifier}\nKey={currentKeyCode}");
+
+            SaveDetectedHotkeyButton.Visibility = Visibility.Collapsed;
+            CancelHotkeyButton.Visibility = Visibility.Collapsed;
+            isRecordingHotkey = false;
+            _onHotkeySaved?.Invoke();
+
+        }
+
+        private void HotkeyRecordButton_Click(object sender, RoutedEventArgs e)
+        {
+            isRecordingHotkey = true;
+            SaveDetectedHotkeyButton.IsEnabled = false;
+            currentKeyCode = 0;
+            currentModifier = 0;
+            HotkeyRecordButton.Content = "Press a key...";
+            SaveDetectedHotkeyButton.Visibility = Visibility.Visible;
+            CancelHotkeyButton.Visibility = Visibility.Visible;
+
+            // Set focus so KeyDown is detected
+            HotkeyRecordButton.Focus(FocusState.Programmatic);
+        }
+
+        private void CancelHotkey_Click(object sender, RoutedEventArgs e)
+        {
+            isRecordingHotkey = false;
+            currentKeyCode = 0;
+            currentModifier = 0;
+            LoadHotkeyUI(); // Re-loads the last saved hotkey
+            SaveDetectedHotkeyButton.Visibility = Visibility.Collapsed;
+            CancelHotkeyButton.Visibility = Visibility.Collapsed;
+        }
+
+
+        private static string FormatModifier(int mod)
+        {
+            List<string> parts = [];
+            if ((mod & 2) != 0) parts.Add("Ctrl");
+            if ((mod & 1) != 0) parts.Add("Alt");
+            if ((mod & 4) != 0) parts.Add("Shift");
+            if ((mod & 8) != 0) parts.Add("Win");
+            return parts.Count > 0 ? string.Join("+", parts) + "+" : "";
+        }
+
+        private static string GetKeyName(uint key)
+        {
+            var knownKeys = new Dictionary<uint, string>
             {
+                [0x00] = "",
                 [0x08] = "Backspace",
                 [0x09] = "Tab",
                 [0x0D] = "Enter",
-                
                 [0x1B] = "Esc",
                 [0x20] = "Space",
-                [0x21] = "Page Up",
-                [0x22] = "Page Down",
-                [0x23] = "End",
-                [0x24] = "Home",
                 [0x25] = "Left",
                 [0x26] = "Up",
                 [0x27] = "Right",
                 [0x28] = "Down",
-                [0x2C] = "Print Screen",
-                [0x2D] = "Insert",
-                [0x2E] = "Delete",
                 [0x30] = "0",
                 [0x31] = "1",
                 [0x32] = "2",
@@ -157,21 +208,6 @@ namespace Gimme_Volumes
                 [0x58] = "X",
                 [0x59] = "Y",
                 [0x5A] = "Z",
-                [0x60] = "Num 0",
-                [0x61] = "Num 1",
-                [0x62] = "Num 2",
-                [0x63] = "Num 3",
-                [0x64] = "Num 4",
-                [0x65] = "Num 5",
-                [0x66] = "Num 6",
-                [0x67] = "Num 7",
-                [0x68] = "Num 8",
-                [0x69] = "Num 9",
-                [0x6A] = "Num *",
-                [0x6B] = "Num +",
-                [0x6D] = "Num -",
-                [0x6E] = "Num Del",
-                [0x6F] = "Num /",
                 [0x70] = "F1",
                 [0x71] = "F2",
                 [0x72] = "F3",
@@ -183,58 +219,47 @@ namespace Gimme_Volumes
                 [0x78] = "F9",
                 [0x79] = "F10",
                 [0x7A] = "F11",
-                [0x7B] = "F12",
-                
-                [0xBA] = ";",
-                [0xBB] = "=",
-                [0xBC] = ",",
-                [0xBD] = "-",
-                [0xBE] = ".",
-                [0xBF] = "/",
-                [0xC0] = "`",
-                [0xDB] = "[",
-                [0xDC] = "\\",
-                [0xDD] = "]",
-                [0xDE] = "'"
+                [0x7B] = "F12"
             };
-
-            foreach (var kvp in keyMap)
-            {
-                KeyDropdown.Items.Add(new ComboBoxItem
-                {
-                    Content = kvp.Value,
-                    Tag = kvp.Key
-                });
-            }
+            return knownKeys.TryGetValue(key, out var name) ? name : key.ToString();
         }
 
-        private static void SetStartup(bool enable)
+        private void StackPanel_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
         {
-            string exePath = Environment.ProcessPath!;
+            if (!isRecordingHotkey) return;
 
-            if (enable)
-            {
-                var shell = new WshShell();
-                IWshShortcut shortcut = (IWshShortcut)shell.CreateShortcut(ShortcutPath);
-                shortcut.TargetPath = exePath;
-                shortcut.WorkingDirectory = Path.GetDirectoryName(exePath);
-                shortcut.WindowStyle = 1;
-                shortcut.Description = "Launch Gimme Volumes at startup";
-                shortcut.Save();
-            }
+            var source = InputKeyboardSource.GetKeyStateForCurrentThread;
+
+            bool isCtrl = source(VirtualKey.Control).HasFlag(CoreVirtualKeyStates.Down);
+            bool isShift = source(VirtualKey.Shift).HasFlag(CoreVirtualKeyStates.Down);
+            bool isAlt = source(VirtualKey.Menu).HasFlag(CoreVirtualKeyStates.Down);
+            bool isWin = source(VirtualKey.LeftWindows).HasFlag(CoreVirtualKeyStates.Down)
+                        || source(VirtualKey.RightWindows).HasFlag(CoreVirtualKeyStates.Down);
+
+            VirtualKey keyPressed = e.Key;
+            uint keyCode = (uint)keyPressed;
+            
+            if (keyCode == 16 || keyCode == 17 || keyCode == 18 || keyCode == 91 || keyCode == 92)
+                keyCode = 0;
+            
+
+            int modifier = 0;
+            if (isCtrl) modifier |= 2;
+            if (isAlt) modifier |= 1;
+            if (isShift) modifier |= 4;
+            if (isWin) modifier |= 8;
+
+            currentKeyCode = keyCode;
+            currentModifier = modifier;
+
+            if (currentKeyCode == 0)
+                SaveDetectedHotkeyButton.IsEnabled = false;
             else
-            {
-                if (System.IO.File.Exists(ShortcutPath))
-                {
-                    System.IO.File.Delete(ShortcutPath);
-                }
-            }
-        }
+                SaveDetectedHotkeyButton.IsEnabled = true;
 
-        private static bool IsStartupEnabled()
-        {
-            return System.IO.File.Exists(ShortcutPath);
-        }
+            HotkeyRecordButton.Content = $"{FormatModifier(modifier)}{GetKeyName(keyCode)}";
+            e.Handled = true;
 
+        }
     }
 }

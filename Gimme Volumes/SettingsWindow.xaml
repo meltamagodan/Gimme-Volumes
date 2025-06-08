@@ -12,27 +12,28 @@
         <DesktopAcrylicBackdrop />
     </Window.SystemBackdrop>
 
-    <StackPanel>
+    <StackPanel KeyDown="StackPanel_KeyDown">
         <TextBlock Text="Settings" FontSize="20" Padding="10,5"/>
         <StackPanel Padding="20,5" Spacing="10">
-            
-            <ToggleSwitch x:Name="StartupToggle" OffContent="Launch On Startup" OnContent="Launch On Startup" />
-            
+
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="10">
+                <TextBlock Text="Launch On Startup" VerticalAlignment="Center"/>
+                <ToggleSwitch x:Name="StartupToggle"/>
+            </StackPanel>
+
             <Rectangle Height="1" Fill="Gray" HorizontalAlignment="Stretch"/>
 
-            <StackPanel Orientation="Vertical" Spacing="10">
-                <TextBlock Text="Hotkey Modifier" FontSize="15"/>
+            <StackPanel Spacing="10">
                 <StackPanel Orientation="Horizontal" Spacing="10">
-                    <ToggleButton x:Name="CtrlToggle" Content="Ctrl" />
-                    <ToggleButton x:Name="AltToggle" Content="Alt" />
-                    <ToggleButton x:Name="ShiftToggle" Content="Shift" />
-                    <ToggleButton x:Name="WinToggle" Content="Win" />
+                    <TextBlock Text="Hotkey" FontSize="15" VerticalAlignment="Center"/>
+                    <Button x:Name="HotkeyRecordButton" Content="Click to assign" Click="HotkeyRecordButton_Click"/>
                 </StackPanel>
 
-                <TextBlock Text="Hotkey Key" FontSize="15" Margin="0,10,0,0"/>
-                <ComboBox x:Name="KeyDropdown" Width="150"/>
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Button x:Name="SaveDetectedHotkeyButton" Content="Save Hotkey" Click="SaveDetectedHotkey_Click" Visibility="Collapsed"/>
+                    <Button x:Name="CancelHotkeyButton" Content="Cancel" Click="CancelHotkey_Click" Visibility="Collapsed"/>
+                </StackPanel>
 
-                <Button x:Name="save" Content="Save Hotkey" Click="SaveHotkey_Click" Margin="0,10,0,0"/>
             </StackPanel>
 
         </StackPanel>

@@ -1,23 +1,21 @@
-﻿using System;
-using System.IO;
-using System.Drawing;
-using System.Windows.Forms;
-using System.Runtime.InteropServices;
-
-using WinRT.Interop;
-
+﻿using H.NotifyIcon;
 using Microsoft.UI;
-using Microsoft.UI.Xaml;
 using Microsoft.UI.Windowing;
-using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-
+using Microsoft.UI.Xaml.Media;
 using NAudio.CoreAudioApi;
-
+using System;
+using System.Drawing;
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Windows.Forms;
+using System.Windows.Input;
 using Windows.Win32;
 using Windows.Win32.Foundation;
-using Windows.Win32.UI.WindowsAndMessaging;
 using Windows.Win32.UI.Input.KeyboardAndMouse;
+using Windows.Win32.UI.WindowsAndMessaging;
+using WinRT.Interop;
 
 namespace Gimme_Volumes
 {
@@ -27,41 +25,71 @@ namespace Gimme_Volumes
         private readonly MMDevice _defaultDevice;
         private readonly AudioSessionManager _sessionManager;
         private readonly HWND _hWnd;
-        private readonly OverlappedPresenter _presenter;
-        private readonly AppWindow _appWindow;
         private SessionCollection? sessions;
 
-        //private const int WS_EX_TOOLWINDOW = 0x00000080;
-        //private const uint DOT_KEY = 0xBE;
         private const uint WM_HOTKEY = 0x0312;
+
+        private TaskbarIcon? _trayIcon;
+
         private readonly WNDPROC origPrc;
         private readonly WNDPROC hotKeyPrc;
 
-        private NotifyIcon? _trayIcon;
-        private ContextMenuStrip? _trayMenu;
+        private readonly ContextMenuStrip? _trayMenu;
 
         private SettingsWindow? _settingsWindow;
 
         private static readonly string HotkeyConfigPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Gimme_Volumes", "hotkey_config.txt");
 
+        public ICommand ShowWindowCommand { get; }
+        public ICommand SettingsCommand { get; }
+        public ICommand ExitCommand { get; }
+
         public MainWindow()
         {
             InitializeComponent();
 
+            ShowWindowCommand = new RelayCommand(ShowWindow);
+            SettingsCommand = new RelayCommand(ShowSettings);
+            ExitCommand = new RelayCommand(ExitApplication);
+
+
             _hWnd = new HWND(WindowNative.GetWindowHandle(this).ToInt32());
-            var windowId = Win32Interop.GetWindowIdFromWindow(_hWnd);
-            _appWindow = AppWindow.GetFromWindowId(windowId);
+            hotKeyPrc = HotKeyPrc;
+            var hotKeyPrcPointer = Marshal.GetFunctionPointerForDelegate(hotKeyPrc);
+            origPrc = Marshal.GetDelegateForFunctionPointer<WNDPROC>(PInvoke.SetWindowLongPtr(_hWnd, WINDOW_LONG_PTR_INDEX.GWL_WNDPROC, hotKeyPrcPointer));
+
+            InitWindowStyle();
 
             InitializeTrayIcon();
 
             InitHotKey();
 
-            hotKeyPrc = HotKeyPrc;
-            var hotKeyPrcPointer = Marshal.GetFunctionPointerForDelegate(hotKeyPrc);
-            origPrc = Marshal.GetDelegateForFunctionPointer<WNDPROC>(PInvoke.SetWindowLongPtr(_hWnd, WINDOW_LONG_PTR_INDEX.GWL_WNDPROC, hotKeyPrcPointer));
+            _deviceEnumerator = new MMDeviceEnumerator();
+            _defaultDevice = _deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+            _sessionManager = _defaultDevice.AudioSessionManager;
 
-            //int exStyle = PInvoke.GetWindowLong(_hWnd, WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE);
-            //PInvoke.SetWindowLong(_hWnd, WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE, exStyle | WS_EX_TOOLWINDOW);
+            LoadAudioSessions();
+        }
+
+        private void ShowSettings()
+        {
+            if (_settingsWindow == null)
+            {
+                CreateSettings();
+            }
+            _settingsWindow?.Activate();
+        }
+
+        private void ExitApplication()
+        {
+            Close();
+        }
+
+        private void InitWindowStyle()
+        {
+            var windowId = Win32Interop.GetWindowIdFromWindow(_hWnd);
+            var _appWindow = AppWindow.GetFromWindowId(windowId);
+
             var displayArea = DisplayArea.GetFromWindowId(_appWindow.Id, DisplayAreaFallback.Primary);
             var screenBounds = displayArea.WorkArea;
 
@@ -80,23 +108,16 @@ namespace Gimme_Volumes
             });
 
 
-            _presenter = (OverlappedPresenter)_appWindow.Presenter;
+            var _presenter = (OverlappedPresenter)_appWindow.Presenter;
             _presenter.IsMaximizable = false;
             _presenter.IsMinimizable = false;
             _presenter.IsResizable = false;
+            _presenter.IsAlwaysOnTop = true;
 
             SetTitleBar(appTitle);
-            
+
             ExtendsContentIntoTitleBar = true;
             _presenter.SetBorderAndTitleBar(hasBorder: true, hasTitleBar: false);
-
-            _deviceEnumerator = new MMDeviceEnumerator();
-            _defaultDevice = _deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
-            _sessionManager = _defaultDevice.AudioSessionManager;
-
-            CreateSettings();
-
-            LoadAudioSessions();
         }
 
         private void CreateSettings()
@@ -133,46 +154,59 @@ namespace Gimme_Volumes
 
         private void InitializeTrayIcon()
         {
-            string exeDirectory = AppContext.BaseDirectory;
+            string? exePath = Environment.ProcessPath;
 
-            _trayMenu = new ContextMenuStrip();
-            var settingPath = Path.Combine(exeDirectory, "Assets\\setting.png");
-            var exitPath = Path.Combine(exeDirectory, "Assets\\exit.png");
-            var iconPath = Path.Combine(exeDirectory, "Assets\\icon.ico");
-
-            _trayMenu.Items.Add("Settings",
-                File.Exists(settingPath) ? System.Drawing.Image.FromFile(settingPath) : null,
-                ShowSettings);
-
-            _trayMenu.Items.Add(new ToolStripSeparator());
-
-            _trayMenu.Items.Add("Exit",
-                File.Exists(exitPath) ? System.Drawing.Image.FromFile(exitPath) : null,
-                ExitApplication);
-
-            _trayIcon = new NotifyIcon
+            _trayIcon = new TaskbarIcon
             {
-                Icon = File.Exists(iconPath) ? new Icon(iconPath) : null,
-                ContextMenuStrip = _trayMenu,
-                Visible = true,
-                Text = "Gimme Volumes"
+                ToolTipText = "Gimme Volumes",
+                ContextMenuMode= ContextMenuMode.SecondWindow,
+                Icon = exePath!=null ? Icon.ExtractAssociatedIcon(exePath) : null
             };
 
-            _trayIcon.DoubleClick += (sender, e) => ShowWindow();
-        }
+            var menuFlyout = new MenuFlyout();
 
-        private void ShowSettings(object? sender, EventArgs e)
-        {
-            if (_settingsWindow == null)
+            
+            var settingsMenuItem = new MenuFlyoutItem
             {
-                CreateSettings();
-            }
-            _settingsWindow?.Activate();
+                Text = "Settings",
+                Command = SettingsCommand
+            };
+            var exitMenuItem = new MenuFlyoutItem
+            {
+                Text = "Exit",
+                Command = ExitCommand
+            };
+
+            menuFlyout.Items.Add(settingsMenuItem);
+            menuFlyout.Items.Add(new MenuFlyoutSeparator());
+            menuFlyout.Items.Add(exitMenuItem);
+
+            _trayIcon.ContextFlyout = menuFlyout;
+            _trayIcon.LeftClickCommand = ShowWindowCommand;
+
+            _trayIcon.ForceCreate();
         }
 
-        private void ExitApplication(object? sender, EventArgs e)
+        private class RelayCommand : ICommand
         {
-            Close();
+            private readonly Action _execute;
+            private readonly Func<bool> _canExecute;
+
+            public event EventHandler? CanExecuteChanged;
+
+            public RelayCommand(Action execute, Func<bool>? canExecute = null)
+            {
+                _execute = execute ?? throw new ArgumentNullException(nameof(execute));
+                _canExecute = canExecute ?? (() => true);
+            }
+
+            public bool CanExecute(object? parameter) => _canExecute();
+            public void Execute(object? parameter) => _execute();
+
+            public void RaiseCanExecuteChanged()
+            {
+                CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+            }
         }
 
         private void ShowWindow()
@@ -189,10 +223,7 @@ namespace Gimme_Volumes
             {
                 if (!Visible)
                 {
-                    PInvoke.ShowWindow(hwnd, SHOW_WINDOW_CMD.SW_SHOW);
-                    PInvoke.SetForegroundWindow(hwnd);
-                    PInvoke.SetFocus(hwnd);
-                    PInvoke.SetActiveWindow(hwnd);
+                    ShowWindow();
                 }
                 else
                 {
@@ -238,7 +269,7 @@ namespace Gimme_Volumes
                         }
                         catch
                         {
-                            label = $"PID {session.GetProcessID}";
+                            continue;
                         }
                     }
 
@@ -367,37 +398,6 @@ namespace Gimme_Volumes
             return "\uE995"; // Volume 3
         }
 
-        /*private void SaveWindowBounds()
-        {
-            var bounds = _appWindow.Position;
-            var configPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "Gimme_Volumes", "window_bounds.txt");
-
-            Directory.CreateDirectory(Path.GetDirectoryName(configPath)!);
-            File.WriteAllText(configPath, $"{bounds.X},{bounds.Y}");
-        }*/
-
-        /*private void RestoreWindowBounds()
-        {
-            var configPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "Gimme_Volumes", "window_bounds.txt");
-
-            if (File.Exists(configPath))
-            {
-                var contents = File.ReadAllText(configPath);
-                var parts = contents.Split(',');
-
-                if (parts.Length == 2 &&
-                    int.TryParse(parts[0], out int x) &&
-                    int.TryParse(parts[1], out int y))
-                {
-                    _appWindow.Move(new Windows.Graphics.PointInt32 { X = x, Y = y });
-                }
-            }
-        }*/
-
         private void Window_Closed(object sender, WindowEventArgs args)
         {
             if (_settingsWindow != null)
@@ -409,7 +409,7 @@ namespace Gimme_Volumes
             _trayIcon?.Dispose();
         }
 
-        private void Window_Activated(object sender, WindowActivatedEventArgs args)
+        private void Window_Activated(object sender, Microsoft.UI.Xaml.WindowActivatedEventArgs args)
         {
             LoadAudioSessions();
             if (args.WindowActivationState == WindowActivationState.Deactivated)
