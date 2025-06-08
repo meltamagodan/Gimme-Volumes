@@ -41,8 +41,6 @@ Gimme Volumes is a lightweight Windows desktop utility that lets you control aud
 
 To further reduce the app size, a Python script (`clean_unused.py`) is provided to delete unnecessary DLLs and folders. Just drop it into the EXE directory and run it.
 
-> ⚠️ **Use at your own risk.** Make sure you back up important files.
-
 ---
 
 ## Development
@@ -55,7 +53,3 @@ To further reduce the app size, a Python script (`clean_unused.py`) is provided 
 - Windows 10/11
 
 ---
-
-## Author
-
-Created by [@YourUsername](https://github.com/YourUsername).
