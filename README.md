@@ -13,7 +13,7 @@ Gimme Volumes is a lightweight Windows desktop utility that lets you control aud
 - 🪟 Uses WinUI 3 (Windows App SDK 1.7)
 - 🧰 Built on .NET 8
 - 🧠 Leverages NAudio for audio session processing
-- 🖇 Uses `IWshRuntimeLibrary` for creating Windows startup shortcuts
+- ~~🖇 Uses `IWshRuntimeLibrary` for creating Windows startup shortcuts~~
 - ⚙️ P/Invoke support via `Microsoft.Windows.CsWin32`
 - 📦 Unpackaged app — no installer required
 
