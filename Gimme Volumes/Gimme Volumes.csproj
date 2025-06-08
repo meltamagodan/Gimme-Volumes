@@ -56,7 +56,6 @@
   <ItemGroup>
     <PackageReference Include="H.NotifyIcon" Version="2.3.0" />
     <PackageReference Include="H.NotifyIcon.WinUI" Version="2.3.0" />
-    <PackageReference Include="Interop.IWshRuntimeLibrary" Version="1.0.1" />
     <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.183">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

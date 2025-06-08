@@ -6,3 +6,7 @@ ShowWindow
 SetForegroundWindow
 SetFocus
 SetActiveWindow
+
+IShellLinkW
+IPersistFile
+CoCreateInstance

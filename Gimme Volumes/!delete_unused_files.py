@@ -20,7 +20,8 @@ files_to_delete = [
     "workloads.qnn.json",
     "workloads.stx.json",
     "wpfgfx_cor3.dll",
-    
+    "System.Windows.Forms.dll",
+    "System.Windows.Forms.Primitives.dll",
     "App.xbf",
     "clretwrc.dll",
     "clrgc.dll",
@@ -45,7 +46,6 @@ files_to_delete = [
     "Microsoft.Security.Authentication.OAuth.winmd",
     "Microsoft.UI.Text.winmd",
     "Microsoft.UI.winmd",
-    "Microsoft.UI.Xaml.Internal.dll",
     "Microsoft.UI.Xaml.Phone.dll",
     "Microsoft.UI.Xaml.winmd",
     "Microsoft.VisualBasic.Core.dll",

@@ -1,4 +1,3 @@
-using IWshRuntimeLibrary;
 using Microsoft.UI;
 using Microsoft.UI.Input;
 using Microsoft.UI.Windowing;
@@ -11,6 +10,7 @@ using Windows.System;
 using Windows.UI.Core;
 using Windows.Win32.Foundation;
 using WinRT.Interop;
+using Windows.Win32;
 
 namespace Gimme_Volumes
 {
@@ -22,6 +22,10 @@ namespace Gimme_Volumes
 
         private readonly Action _onHotkeySaved;
         private readonly HWND hwnd;
+
+        private bool isRecordingHotkey = false;
+        private uint currentKeyCode = 0;
+        private int currentModifier = 0;
 
         public SettingsWindow(Action onHotkeySaved)
         {
@@ -79,17 +83,9 @@ namespace Gimme_Volumes
 
         private static void SetStartup(bool enable)
         {
-            string exePath = Environment.ProcessPath!;
-
             if (enable)
             {
-                var shell = new WshShell();
-                IWshShortcut shortcut = (IWshShortcut)shell.CreateShortcut(ShortcutPath);
-                shortcut.TargetPath = exePath;
-                shortcut.WorkingDirectory = Path.GetDirectoryName(exePath);
-                shortcut.WindowStyle = 1;
-                shortcut.Description = "Launch Gimme Volumes at startup";
-                shortcut.Save();
+                CreateShortcut();
             }
             else
             {
@@ -100,14 +96,39 @@ namespace Gimme_Volumes
             }
         }
 
+        private static void CreateShortcut()
+        {
+            string exePath = Environment.ProcessPath!;
+            string shortcutPath = Path.Combine(StartupFolderPath, "GimmeVolumes.lnk");
+
+            // CLSID_ShellLink = {00021401-0000-0000-C000-000000000046}
+            Guid clsidShellLink = new("00021401-0000-0000-C000-000000000046");
+
+            // IID_IShellLinkW = {000214F9-0000-0000-C000-000000000046}
+            Guid iidShellLink = new("000214F9-0000-0000-C000-000000000046");
+
+            PInvoke.CoCreateInstance(
+                clsidShellLink,
+                null,
+                Windows.Win32.System.Com.CLSCTX.CLSCTX_INPROC_SERVER,
+                iidShellLink,
+                out var shellLinkObj
+            );
+
+            var shellLink = (Windows.Win32.UI.Shell.IShellLinkW)shellLinkObj;
+            shellLink.SetPath(exePath);
+            shellLink.SetWorkingDirectory(Path.GetDirectoryName(exePath)!);
+            shellLink.SetDescription("Launch Gimme Volumes at startup");
+
+            // Query IPersistFile to save the .lnk
+            var persistFile = (Windows.Win32.System.Com.IPersistFile)shellLink;
+            persistFile.Save(shortcutPath, true);
+        }
+
         private static bool IsStartupEnabled()
         {
             return System.IO.File.Exists(ShortcutPath);
         }
-
-        private bool isRecordingHotkey = false;
-        private uint currentKeyCode = 0;
-        private int currentModifier = 0;
 
         private void SaveDetectedHotkey_Click(object sender, RoutedEventArgs e)
         {
@@ -132,9 +153,6 @@ namespace Gimme_Volumes
             HotkeyRecordButton.Content = "Press a key...";
             SaveDetectedHotkeyButton.Visibility = Visibility.Visible;
             CancelHotkeyButton.Visibility = Visibility.Visible;
-
-            // Set focus so KeyDown is detected
-            HotkeyRecordButton.Focus(FocusState.Programmatic);
         }
 
         private void CancelHotkey_Click(object sender, RoutedEventArgs e)
@@ -142,11 +160,10 @@ namespace Gimme_Volumes
             isRecordingHotkey = false;
             currentKeyCode = 0;
             currentModifier = 0;
-            LoadHotkeyUI(); // Re-loads the last saved hotkey
+            LoadHotkeyUI();
             SaveDetectedHotkeyButton.Visibility = Visibility.Collapsed;
             CancelHotkeyButton.Visibility = Visibility.Collapsed;
         }
-
 
         private static string FormatModifier(int mod)
         {
