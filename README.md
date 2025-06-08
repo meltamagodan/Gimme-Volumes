@@ -9,7 +9,7 @@ Gimme Volumes is a lightweight Windows desktop utility that lets you control aud
 - 🔊 View and control volume of individual audio sessions
 - 🎚 Change the global hotkey for showing the window
 - 🚀 Option to launch the app at startup
-- 📥 Tray icon for quick access to Settings or Exit
+- 📥 Tray icon using `H.NotifyIcon` for quick access to Settings or Exit
 - 🪟 Uses WinUI 3 (Windows App SDK 1.7)
 - 🧰 Built on .NET 8
 - 🧠 Leverages NAudio for audio session processing
